@@ -130,5 +130,11 @@ dmypy.json
 
 
 # Files
-
-.pdf
+/tabula
+/Files
+/Completed_Files
+*.zip
+*.png
+*.csv
+*.pdf
+*.txt
