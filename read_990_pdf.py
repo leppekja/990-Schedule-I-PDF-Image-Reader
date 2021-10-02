@@ -22,23 +22,6 @@ def pdf_to_csv(file, start_page, end_page, output_file_name, table_headers=False
     return read_pdf(file, pages='{}-{}'.format(start_page, end_page), pandas_options={'header': headers}, stream=not cell_lines, lattice=cell_lines)
 
 
-def split_pdf(file, start_page, end_page):
-    '''
-    Adapted from https://pyshine.com/Make-a-pdf-cutter/
-    '''
-    doc_name = file.rsplit('\\')[-1].split(
-        '.')[0] + '_'.join([str(start_page), str(end_page)]) + '.pdf'
-    input_file = PdfFileReader(open(file, 'rb'))
-    output_file = PdfFileWriter()
-    for i in range(start_page - 1, end_page):
-        output_file.addPage(input_file.getPage(i))
-
-    with open(doc_name, 'wb') as outputStream:
-        output_file.write(outputStream)
-
-    return None
-
-
 def camelot_read_pdf(file, start_page, end_page, flavor, save=True, del_header_indices=None):
     tables = camelot.read_pdf(file, flavor=flavor, pages=str(
         start_page) + '-' + str(end_page))

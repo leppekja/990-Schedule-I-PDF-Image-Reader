@@ -11,10 +11,13 @@ import numpy as np
 import sys
 
 
-def create_samples(path, start_page, end_page):
+def create_samples(path, start_page, end_page, rotate_img=True):
     originals = convert_pdf_pages_to_imgs(path, start_page, end_page)
-    cleaned = [clean_image(i) for i in originals]
-    return [rotate(i) for i in originals], cleaned
+    cleaned = [clean_image(i, rotate_img=rotate_img) for i in originals]
+    if rotate_img:
+        originals = [rotate(i) for i in originals]
+
+    return originals, cleaned
 
 
 def read_img(img):
@@ -224,7 +227,7 @@ def calculate_boxes(img, horizontal_borders, vertical_borders, debug=False, orig
 
             # Far left (start box)
             if v_idx == 0:
-                left_cell_border = 90
+                left_cell_border = 5
                 right_cell_border = np.mean(v_line[:, 0][:, 0])
             else:
                 left_cell_border = np.mean(
@@ -384,7 +387,7 @@ def read_cells_on_page(cells, dim):
     return pd.DataFrame(array_to_df)
 
 
-def read_document(document_path, start_page, end_page, validate_shapes=True, save_file=True, headers_on_first_page=True, rotate_img=True):
+def read_document(document_path, start_page, end_page, validate_shapes=True, save_file=True, headers_on_first_page=True, rotate_img=True, reset_index=False):
     '''
     Note that start page must be the opening page of the Schedule I, e.g., have the header
     https://stackoverflow.com/questions/14134892/convert-image-from-pil-to-opencv-format
@@ -448,7 +451,12 @@ def read_document(document_path, start_page, end_page, validate_shapes=True, sav
             print(e)
             pass
 
-    all_dfs = pd.concat(page_dataframes)
+    if reset_index:
+        [print(df.columns) for df in page_dataframes]
+        all_dfs = pd.concat(page_dataframes, ignore_index=True)
+    else:
+        all_dfs = pd.concat(page_dataframes)
+
     if save_file:
         all_dfs.to_csv(doc_name + '.csv')
 
@@ -466,8 +474,8 @@ def convert_pdf_pages_to_imgs(file, start_page, end_page, save=False):
     if save:
         for idx, img in enumerate(image_list):
             img.save('page' + str(idx) + '.png')
-
-    return [np.array(i) for i in image_list]
+    else:
+        return [np.array(i) for i in image_list]
 
 
 def preprocess(img, kind):
