@@ -5,7 +5,6 @@ import boto3
 import io
 from io import BytesIO
 import sys
-from pprint import pprint
 '''
 ******************************
 Code taken from https://docs.aws.amazon.com/textract/latest/dg/examples-export-table-csv.html
@@ -42,6 +41,7 @@ def get_text(result, blocks_map):
                     if word['BlockType'] == 'SELECTION_ELEMENT':
                         if word['SelectionStatus'] == 'SELECTED':
                             text += 'X '
+
     return text
 
 
@@ -103,10 +103,14 @@ def main(file_name, blocks_response=None):
     table_csv = get_table_csv_results(
         file_name, blocks_response=blocks_response)
 
-    # doc_name = document_path.rsplit("\\")[-1].split('.')[0]
-
-    output_file = 'output.csv'
-
+    if '/' in file_name:
+        doc_name = file_name.split('/')[1].split('.')[0]
+    else:
+        doc_name = file_name.split('.')[0]
+    try:
+        output_file = 'COMPLETE_' + doc_name + '.csv'
+    except Exception as e:
+        output_file = "Read_File.csv"
     # replace content
     with open(output_file, "wt") as fout:
         fout.write(table_csv)

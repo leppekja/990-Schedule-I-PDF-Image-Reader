@@ -44,20 +44,11 @@ class DocumentProcessor:
         self.processType = type
         validType = False
 
-        # Determine which type of processing to perform
-        if self.processType == ProcessType.DETECTION:
-            response = self.textract.start_document_text_detection(
-                DocumentLocation={'S3Object': {
-                    'Bucket': self.bucket, 'Name': self.document}},
-                NotificationChannel={'RoleArn': self.roleArn, 'SNSTopicArn': self.snsTopicArn})
-            print('Processing type: Detection')
-            validType = True
-
         if self.processType == ProcessType.ANALYSIS:
             response = self.textract.start_document_analysis(
                 DocumentLocation={'S3Object': {
                     'Bucket': self.bucket, 'Name': self.document}},
-                FeatureTypes=["TABLES", "FORMS"],
+                FeatureTypes=["TABLES"],
                 NotificationChannel={'RoleArn': self.roleArn, 'SNSTopicArn': self.snsTopicArn})
             print('Processing type: Analysis')
             validType = True
@@ -134,22 +125,22 @@ class DocumentProcessor:
 
         # Authorize SNS to write SQS queue
         policy = """{{
-  "Version":"2012-10-17",
-  "Statement":[
-    {{
-      "Sid":"MyPolicy",
-      "Effect":"Allow",
-      "Principal" : {{"AWS" : "*"}},
-      "Action":"SQS:SendMessage",
-      "Resource": "{}",
-      "Condition":{{
-        "ArnEquals":{{
-          "aws:SourceArn": "{}"
-        }}
-      }}
-    }}
-  ]
-}}""".format(sqsQueueArn, self.snsTopicArn)
+            "Version":"2012-10-17",
+            "Statement":[
+                {{
+                "Sid":"MyPolicy",
+                "Effect":"Allow",
+                "Principal" : {{"AWS" : "*"}},
+                "Action":"SQS:SendMessage",
+                "Resource": "{}",
+                "Condition":{{
+                    "ArnEquals":{{
+                    "aws:SourceArn": "{}"
+                    }}
+                }}
+                }}
+            ]
+            }}""".format(sqsQueueArn, self.snsTopicArn)
 
         response = self.sqs.set_queue_attributes(
             QueueUrl=self.sqsQueueUrl,
@@ -161,50 +152,14 @@ class DocumentProcessor:
         self.sqs.delete_queue(QueueUrl=self.sqsQueueUrl)
         self.sns.delete_topic(TopicArn=self.snsTopicArn)
 
-    # Display information about a block
-    def DisplayBlockInfo(self, block):
-
-        print("Block Id: " + block['Id'])
-        print("Type: " + block['BlockType'])
-        if 'EntityTypes' in block:
-            print('EntityTypes: {}'.format(block['EntityTypes']))
-
-        if 'Text' in block:
-            print("Text: " + block['Text'])
-
-        if block['BlockType'] != 'PAGE':
-            print("Confidence: " + "{:.2f}".format(block['Confidence']) + "%")
-
-        print('Page: {}'.format(block['Page']))
-
-        if block['BlockType'] == 'CELL':
-            print('Cell Information')
-            print('\tColumn: {} '.format(block['ColumnIndex']))
-            print('\tRow: {}'.format(block['RowIndex']))
-            print('\tColumn span: {} '.format(block['ColumnSpan']))
-            print('\tRow span: {}'.format(block['RowSpan']))
-
-            if 'Relationships' in block:
-                print('\tRelationships: {}'.format(block['Relationships']))
-
-        print('Geometry')
-        print('\tBounding Box: {}'.format(block['Geometry']['BoundingBox']))
-        print('\tPolygon: {}'.format(block['Geometry']['Polygon']))
-
-        if block['BlockType'] == 'SELECTION_ELEMENT':
-            print('    Selection element detected: ', end='')
-            if block['SelectionStatus'] == 'SELECTED':
-                print('Selected')
-            else:
-                print('Not selected')
-
     def GetResults(self, jobId):
         maxResults = 1000
         paginationToken = None
         finished = False
+        loop_num = 0
+        entire_response = []
 
         while finished == False:
-
             response = None
 
             if self.processType == ProcessType.ANALYSIS:
@@ -226,43 +181,27 @@ class DocumentProcessor:
                                                                          NextToken=paginationToken)
 
             blocks = response['Blocks']
-            print('Detected Document Text')
-            print('Pages: {}'.format(response['DocumentMetadata']['Pages']))
+            if loop_num == 0:
+                print('Detected Document Text')
+                print('Pages: {}'.format(
+                    response['DocumentMetadata']['Pages']))
+                loop_num += 1
+            else:
+                print("Response Number: {}".format(str(loop_num)))
+                loop_num += 1
 
-            atc.main(None, blocks)
+            entire_response.extend(blocks)
+
+            with open('test' + str(loop_num) + '.json', 'w') as j_file:
+                j_file.write(json.dumps(response))
 
             if 'NextToken' in response:
                 paginationToken = response['NextToken']
             else:
                 finished = True
+        print("Finished collecting responses...")
 
-    def GetResultsDocumentAnalysis(self, jobId):
-        maxResults = 1000
-        paginationToken = None
-        finished = False
-
-        while finished == False:
-
-            response = None
-            if paginationToken == None:
-                response = self.textract.get_document_analysis(JobId=jobId,
-                                                               MaxResults=maxResults)
-            else:
-                response = self.textract.get_document_analysis(JobId=jobId,
-                                                               MaxResults=maxResults,
-                                                               NextToken=paginationToken)
-
-                # Get the text blocks
-            blocks = response['Blocks']
-            print('Analyzed Document Text')
-            print('Pages: {}'.format(response['DocumentMetadata']['Pages']))
-
-            atc.main(None, blocks)
-
-            if 'NextToken' in response:
-                paginationToken = response['NextToken']
-            else:
-                finished = True
+        atc.main(self.document, entire_response)
 
 
 def main(roleArn, bucket, document, region_name):
