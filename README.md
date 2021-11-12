@@ -6,6 +6,8 @@
 
 ##### Date: 9/2/2021
 
+This work was used in the development of Giving USAs Fall 2021 [Special Report on Donor-Advised Funds](https://store.givingusa.org/collections/special-reports-spotlights/products/giving-usa-special-report-donor-advised-funds-new-insights?variant=39676381134927)
+
 ### Amazon Textract Approach
 
 This approach uses [Amazon's Textract](https://docs.aws.amazon.com/textract/latest/dg/what-is.html) service to read in the tables from PDFs and returns them as CSVs.
